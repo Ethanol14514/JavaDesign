@@ -44,3 +44,4 @@ bin/
 ### DB Files ###
 user.db
 data.db
+/docs/
