@@ -1,9 +1,12 @@
+import org.gradle.api.internal.plugins.MainClass
+
 plugins {
     id("java")
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("application")
 }
 
-group = "org.teamethanol.shopManager"
+group = "org.teamethanol.bookManager"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -26,4 +29,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+application{
+    mainClass.set("org.teamethanol.bookManager.Main")
 }

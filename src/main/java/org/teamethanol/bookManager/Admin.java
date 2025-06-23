@@ -162,6 +162,12 @@ public class Admin extends JFrame {
                     int stock = Integer.parseInt(stockField.getText());
                     double price = Double.parseDouble(priceField.getText());
 
+                    // ISBN校验
+                    if (!validateISBN(isbn)) {
+                        JOptionPane.showMessageDialog(this, "ISBN格式不正确，请输入有效的ISBN-10或ISBN-13");
+                        return;
+                    }
+
                     // 生成书号前缀：ISBN后6位
                     String isbnSuffix = isbn.replaceAll("[- ]", "");
                     if (isbnSuffix.length() < 6) throw new Exception();
@@ -188,6 +194,12 @@ public class Admin extends JFrame {
             String isbn = JOptionPane.showInputDialog(this, "请输入要删除的ISBN号:");
             if (isbn != null && !isbn.isEmpty()) {
                 try {
+                    // ISBN校验
+                    if (!validateISBN(isbn)) {
+                        JOptionPane.showMessageDialog(this, "ISBN格式不正确，请输入有效的ISBN-10或ISBN-13");
+                        return;
+                    }
+
                     boolean ok = DatabaseManager.deleteBook(isbn);
                     if (ok) {
                         JOptionPane.showMessageDialog(this, "删除成功");
@@ -342,6 +354,34 @@ public class Admin extends JFrame {
                 }
             }
         }
+    }
+
+    // 校验ISBN-10或ISBN-13格式
+    private static boolean validateISBN(String isbn) {
+        if (isbn == null) return false;
+        String clean = isbn.replaceAll("[- ]", "");
+        if (clean.length() == 10) {
+            // ISBN-10 校验
+            int sum = 0;
+            for (int i = 0; i < 9; i++) {
+                if (!Character.isDigit(clean.charAt(i))) return false;
+                sum += (clean.charAt(i) - '0') * (10 - i);
+            }
+            char last = clean.charAt(9);
+            if (last != 'X' && !Character.isDigit(last)) return false;
+            sum += (last == 'X') ? 10 : (last - '0');
+            return sum % 11 == 0;
+        } else if (clean.length() == 13) {
+            // ISBN-13 校验
+            int sum = 0;
+            for (int i = 0; i < 13; i++) {
+                if (!Character.isDigit(clean.charAt(i))) return false;
+                int digit = clean.charAt(i) - '0';
+                sum += (i % 2 == 0) ? digit : digit * 3;
+            }
+            return sum % 10 == 0;
+        }
+        return false;
     }
 
     // JFormDesigner - Variables declaration - DO NOT MODIFY  //GEN-BEGIN:variables  @formatter:off

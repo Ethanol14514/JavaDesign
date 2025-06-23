@@ -37,7 +37,7 @@ public class UserDatabaseManager {
             e.printStackTrace();
         }
         //分发时可能没有相关数据库，为避免无法访问，可进行此操作。
-        sql = "INSERT INTO users (username, password, is_admin) VALUES (admin, 'passw0rd', 1);";
+        sql = "INSERT INTO users (username, password, is_admin) VALUES ('admin', 'passw0rd', 1);";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
