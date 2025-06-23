@@ -132,58 +132,89 @@ public class Admin extends JFrame {
 
     // 图书添加/删除
     private void showBookActionDialog() {
-        String[] options = {"添加图书", "删除图书"};
-        int choice = JOptionPane.showOptionDialog(this, "请选择操作：", "图书操作", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        String[] typeOptions = {"图书(ISBN)", "期刊"};
+        JComboBox<String> typeCombo = new JComboBox<>(typeOptions);
+        int choice = JOptionPane.showOptionDialog(this, "请选择操作：", "图书/期刊操作", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, new Object[]{"添加", "删除"}, "添加");
         if (choice == 0) { // 添加
             JTextField titleField = new JTextField();
             JTextField authorField = new JTextField();
             JTextField isbnField = new JTextField();
+            JTextField issnField = new JTextField();
+            JTextField ean13Field = new JTextField();
             JTextField publisherField = new JTextField();
             JTextField yearField = new JTextField();
             JTextField stockField = new JTextField();
             JTextField priceField = new JTextField();
             Object[] message = {
-                "书名:", titleField,
+                "类型:", typeCombo,
+                "名称:", titleField,
                 "作者:", authorField,
-                "ISBN号:", isbnField,
+                "ISBN:", isbnField,
+                "ISSN(期刊填写):", issnField,
+                "EAN-13(期刊填写):", ean13Field,
                 "出版社:", publisherField,
                 "出版时间:", yearField,
                 "库存量:", stockField,
                 "价格:", priceField
             };
-            int result = JOptionPane.showConfirmDialog(this, message, "添加图书", JOptionPane.OK_CANCEL_OPTION);
+            int result = JOptionPane.showConfirmDialog(this, message, "添加图书/期刊", JOptionPane.OK_CANCEL_OPTION);
             if (result == JOptionPane.OK_OPTION) {
                 try {
                     String title = titleField.getText();
                     String author = authorField.getText();
                     String isbn = isbnField.getText();
+                    String issn = issnField.getText();
+                    String ean13 = ean13Field.getText();
                     String publisher = publisherField.getText();
                     int year = Integer.parseInt(yearField.getText());
                     int stock = Integer.parseInt(stockField.getText());
                     double price = Double.parseDouble(priceField.getText());
-
-                    // ISBN校验
-                    if (!validateISBN(isbn)) {
-                        JOptionPane.showMessageDialog(this, "ISBN格式不正确，请输入有效的ISBN-10或ISBN-13");
-                        return;
+                    String type = (String) typeCombo.getSelectedItem();
+                    boolean valid = false;
+                    if ("图书(ISBN)".equals(type)) {
+                        valid = validateISBN(isbn);
+                        if (!valid) {
+                            JOptionPane.showMessageDialog(this, "ISBN格式不正确");
+                            return;
+                        }
+                    } else if ("期刊".equals(type)) {
+                        valid = validateISSN(issn) && validateEAN13(ean13);
+                        if (!validateISSN(issn)) {
+                            JOptionPane.showMessageDialog(this, "ISSN格式不正确");
+                            return;
+                        }
+                        if (!validateEAN13(ean13)) {
+                            JOptionPane.showMessageDialog(this, "EAN-13格式不正确");
+                            return;
+                        }
                     }
-
-                    // 生成书号前缀：ISBN后6位
-                    String isbnSuffix = isbn.replaceAll("[- ]", "");
-                    if (isbnSuffix.length() < 6) throw new Exception();
-                    isbnSuffix = isbnSuffix.substring(isbnSuffix.length() - 6);
-
-                    // 先插入主信息（00号，stock为总量）
-                    String bookNumberMain = isbnSuffix + "00";
-                    boolean ok = DatabaseManager.addBookWithNumber(title, author, isbn, publisher, year, stock, price, bookNumberMain, false, null, null, null);
+                    // 生成书号前缀：编号后6位
+                    String idSuffix;
+                    if ("图书(ISBN)".equals(type)) {
+                        idSuffix = isbn.replaceAll("[- ]", "");
+                    } else {
+                        idSuffix = ean13.replaceAll("[- ]", "");
+                    }
+                    if (idSuffix.length() < 6) throw new Exception();
+                    idSuffix = idSuffix.substring(idSuffix.length() - 6);
+                    String bookNumberMain = idSuffix + "00";
+                    boolean ok;
+                    if ("图书(ISBN)".equals(type)) {
+                        ok = DatabaseManager.addBookWithNumber(title, author, isbn, null, null, type, publisher, year, stock, price, bookNumberMain, false, null, null, null);
+                        for (int i = 1; i <= stock && ok; i++) {
+                            String bookNumber = idSuffix + String.format("%02d", i);
+                            ok &= DatabaseManager.addBookWithNumber(title, author, isbn, null, null, type, publisher, year, 1, price, bookNumber, false, null, null, null);
+                        }
+                    } else {
+                        ok = DatabaseManager.addBookWithNumber(title, author, isbn, issn, ean13, type, publisher, year, stock, price, bookNumberMain, false, null, null, null);
+                        for (int i = 1; i <= stock && ok; i++) {
+                            String bookNumber = idSuffix + String.format("%02d", i);
+                            ok &= DatabaseManager.addBookWithNumber(title, author, isbn, issn, ean13, type, publisher, year, 1, price, bookNumber, false, null, null, null);
+                        }
+                    }
                     if (!ok) {
-                        JOptionPane.showMessageDialog(this, "添加失败，ISBN格式不正确或已存在");
+                        JOptionPane.showMessageDialog(this, "添加失败，编号格式不正确或已存在");
                         return;
-                    }
-                    // 再插入每本单独的副本（01~N，stock=1）
-                    for (int i = 1; i <= stock; i++) {
-                        String bookNumber = isbnSuffix + String.format("%02d", i);
-                        DatabaseManager.addBookWithNumber(title, author, isbn, publisher, year, 1, price, bookNumber, false, null, null, null);
                     }
                     JOptionPane.showMessageDialog(this, "添加成功，主书号为：" + bookNumberMain + "，副本共" + stock + "本");
                 } catch (Exception ex) {
@@ -191,20 +222,36 @@ public class Admin extends JFrame {
                 }
             }
         } else if (choice == 1) { // 删除
-            String isbn = JOptionPane.showInputDialog(this, "请输入要删除的ISBN号:");
-            if (isbn != null && !isbn.isEmpty()) {
+            JComboBox<String> typeComboDel = new JComboBox<>(typeOptions);
+            JTextField isbnField = new JTextField();
+            JTextField issnField = new JTextField();
+            JTextField ean13Field = new JTextField();
+            Object[] message = {"类型:", typeComboDel, "ISBN:", isbnField, "ISSN(期刊填写):", issnField, "EAN-13(期刊填写):", ean13Field};
+            int result = JOptionPane.showConfirmDialog(this, message, "删除图书/期刊", JOptionPane.OK_CANCEL_OPTION);
+            if (result == JOptionPane.OK_OPTION) {
+                String type = (String) typeComboDel.getSelectedItem();
+                String isbn = isbnField.getText();
+                String issn = issnField.getText();
+                String ean13 = ean13Field.getText();
+                boolean valid = false;
+                if ("图书(ISBN)".equals(type)) valid = validateISBN(isbn);
+                else if ("期刊".equals(type)) valid = validateISSN(issn) && validateEAN13(ean13);
+                if (!valid) {
+                    JOptionPane.showMessageDialog(this, "编号格式不正确");
+                    return;
+                }
                 try {
-                    // ISBN校验
-                    if (!validateISBN(isbn)) {
-                        JOptionPane.showMessageDialog(this, "ISBN格式不正确，请输入有效的ISBN-10或ISBN-13");
-                        return;
+                    boolean ok;
+                    if ("图书(ISBN)".equals(type)) {
+                        ok = DatabaseManager.deleteBook(isbn);
+                    } else {
+                        // 期刊删除可按issn和ean13联合删除（此处以issn为主）
+                        ok = DatabaseManager.deleteBookByIssnAndEan13(issn, ean13);
                     }
-
-                    boolean ok = DatabaseManager.deleteBook(isbn);
                     if (ok) {
                         JOptionPane.showMessageDialog(this, "删除成功");
                     } else {
-                        JOptionPane.showMessageDialog(this, "删除失败，未找到该ISBN");
+                        JOptionPane.showMessageDialog(this, "删除失败，未找到该编号");
                     }
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(this, "输入格式有误");
@@ -382,6 +429,37 @@ public class Admin extends JFrame {
             return sum % 10 == 0;
         }
         return false;
+    }
+
+    // 校验ISSN格式
+    private static boolean validateISSN(String issn) {
+        if (issn == null) return false;
+        String clean = issn.replaceAll("[- ]", "");
+        if (clean.length() != 8) return false;
+        int sum = 0;
+        for (int i = 0; i < 7; i++) {
+            if (!Character.isDigit(clean.charAt(i))) return false;
+            sum += (8 - i) * (clean.charAt(i) - '0');
+        }
+        char last = clean.charAt(7);
+        if (last != 'X' && !Character.isDigit(last)) return false;
+        sum += (last == 'X') ? 10 : (last - '0');
+        return sum % 11 == 0;
+    }
+
+    // 校验EAN-13格式
+    private static boolean validateEAN13(String ean) {
+        if (ean == null) return false;
+        String clean = ean.replaceAll("[- ]", "");
+        if (clean.length() != 13) return false;
+        int sum = 0;
+        for (int i = 0; i < 12; i++) {
+            if (!Character.isDigit(clean.charAt(i))) return false;
+            int digit = clean.charAt(i) - '0';
+            sum += (i % 2 == 0) ? digit : digit * 3;
+        }
+        int check = (10 - (sum % 10)) % 10;
+        return check == (clean.charAt(12) - '0');
     }
 
     // JFormDesigner - Variables declaration - DO NOT MODIFY  //GEN-BEGIN:variables  @formatter:off

@@ -30,6 +30,9 @@ public class DatabaseManager {
                 "title TEXT NOT NULL, " +
                 "author TEXT NOT NULL, " +
                 "isbn TEXT NOT NULL, " +
+                "issn TEXT, " +
+                "ean13 TEXT, " +
+                "type TEXT NOT NULL, " + // 新增字段，区分图书/期刊类型
                 "publisher TEXT, " +
                 "publish_year INTEGER, " +
                 "stock INTEGER, " +
@@ -105,6 +108,20 @@ public class DatabaseManager {
         }
     }
 
+    // 删除期刊（通过issn和ean13联合删除）
+    public static boolean deleteBookByIssnAndEan13(String issn, String ean13) {
+        String sql = "DELETE FROM books WHERE issn = ? AND ean13 = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, issn);
+            pstmt.setString(2, ean13);
+            int affected = pstmt.executeUpdate();
+            return affected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     // 修改图书
     public static boolean updateBook(String isbn, String title, String author, String publisher, int publishYear, int stock, double price) {
         String sql = "UPDATE books SET title=?, author=?, publisher=?, publish_year=?, stock=?, price=? WHERE isbn=?";
@@ -141,6 +158,58 @@ public class DatabaseManager {
             pstmt.setString(10, borrower);
             pstmt.setString(11, borrowStart);
             pstmt.setString(12, borrowEnd);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 添加带书号和借阅信息的图书（支持type字段）
+    public static boolean addBookWithNumber(String title, String author, String isbn, String type, String publisher, int publishYear, int stock, double price, String bookNumber, boolean isBorrowed, String borrower, String borrowStart, String borrowEnd) {
+        String sql = "INSERT INTO books (title, author, isbn, type, publisher, publish_year, stock, price, book_number, isBorrowed, borrower, borrow_start, borrow_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, author);
+            pstmt.setString(3, isbn);
+            pstmt.setString(4, type);
+            pstmt.setString(5, publisher);
+            pstmt.setInt(6, publishYear);
+            pstmt.setInt(7, stock);
+            pstmt.setDouble(8, price);
+            pstmt.setString(9, bookNumber);
+            pstmt.setInt(10, isBorrowed ? 1 : 0);
+            pstmt.setString(11, borrower);
+            pstmt.setString(12, borrowStart);
+            pstmt.setString(13, borrowEnd);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 添加带书号和借阅信息的图书（支持type/issn/ean13字段）
+    public static boolean addBookWithNumber(String title, String author, String isbn, String issn, String ean13, String type, String publisher, int publishYear, int stock, double price, String bookNumber, boolean isBorrowed, String borrower, String borrowStart, String borrowEnd) {
+        String sql = "INSERT INTO books (title, author, isbn, issn, ean13, type, publisher, publish_year, stock, price, book_number, isBorrowed, borrower, borrow_start, borrow_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, author);
+            pstmt.setString(3, isbn);
+            pstmt.setString(4, issn);
+            pstmt.setString(5, ean13);
+            pstmt.setString(6, type);
+            pstmt.setString(7, publisher);
+            pstmt.setInt(8, publishYear);
+            pstmt.setInt(9, stock);
+            pstmt.setDouble(10, price);
+            pstmt.setString(11, bookNumber);
+            pstmt.setInt(12, isBorrowed ? 1 : 0);
+            pstmt.setString(13, borrower);
+            pstmt.setString(14, borrowStart);
+            pstmt.setString(15, borrowEnd);
             pstmt.executeUpdate();
             return true;
         } catch (SQLException e) {

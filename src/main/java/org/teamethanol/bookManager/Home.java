@@ -10,9 +10,6 @@ import java.awt.event.MouseEvent;
 import javax.swing.*;
 import net.miginfocom.swing.*;
 
-/**
- * @author 35535
- */
 public class Home extends JFrame {
     public Home() {
         UserDatabaseManager.init(); // 初始化用户数据库

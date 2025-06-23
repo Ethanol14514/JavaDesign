@@ -2,6 +2,7 @@ package org.teamethanol.bookManager;
 
 import java.io.File;
 import java.sql.*;
+import java.security.MessageDigest;
 
 /**
  * 使用的为SQLite作为数据库存储，其他数据库应当进行相应修改。
@@ -36,8 +37,9 @@ public class UserDatabaseManager {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        //分发时可能没有相关数据库，为避免无法访问，可进行此操作。
-        sql = "INSERT INTO users (username, password, is_admin) VALUES ('admin', 'passw0rd', 1);";
+        // 初始管理员密码存为MD5
+        String adminHash = md5("passw0rd");
+        sql = "INSERT INTO users (username, password, is_admin) VALUES ('admin', '" + adminHash + "', 1);";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
@@ -45,11 +47,26 @@ public class UserDatabaseManager {
         }
     }
 
+    // 获取MD5哈希
+    private static String md5(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] bytes = md.digest(input.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b & 0xff));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static boolean checkLogin(String username, String password) {
         String sql = "SELECT * FROM users WHERE username=? AND password=?";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, md5(password));
             ResultSet rs = pstmt.executeQuery();
             return rs.next();
         } catch (SQLException e) {
@@ -72,15 +89,16 @@ public class UserDatabaseManager {
         return false;
     }
 
-    public static void addUser(String username, String password, boolean isAdmin) {
+    public static boolean addUser(String username, String password, boolean isAdmin) {
         String sql = "INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, md5(password));
             pstmt.setInt(3, isAdmin ? 1 : 0);
             pstmt.executeUpdate();
+            return true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            return false;
         }
     }
 
@@ -96,16 +114,15 @@ public class UserDatabaseManager {
         }
     }
 
-    public static boolean updateUser(String username, String newPassword, boolean isAdmin) {
-        String sql = "UPDATE users SET password = ?, is_admin = ? WHERE username = ?";
+    public static boolean updateUser(String username, String password, boolean isAdmin) {
+        String sql = "UPDATE users SET password=?, is_admin=? WHERE username=?";
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, newPassword);
+            pstmt.setString(1, md5(password));
             pstmt.setInt(2, isAdmin ? 1 : 0);
             pstmt.setString(3, username);
             int affected = pstmt.executeUpdate();
             return affected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
             return false;
         }
     }
