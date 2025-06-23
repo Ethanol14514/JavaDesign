@@ -1,8 +1,7 @@
-package org.teamethanol.boolManager;
+package org.teamethanol.bookManager;
 
 import java.io.File;
 import java.sql.*;
-import org.sqlite.*;
 
 public class DatabaseManager {
     private static final String DB_FILE = "data.db";

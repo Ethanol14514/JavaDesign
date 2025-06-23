@@ -1,4 +1,4 @@
-package org.teamethanol.boolManager;
+package org.teamethanol.bookManager;
 
 import java.io.File;
 import java.sql.*;

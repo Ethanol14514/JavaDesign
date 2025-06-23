@@ -1,4 +1,4 @@
-package org.teamethanol.boolManager;
+package org.teamethanol.bookManager;
 import com.formdev.flatlaf.intellijthemes.materialthemeuilite.FlatMTArcDarkIJTheme;
 
 import javax.swing.*;

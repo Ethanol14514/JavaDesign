@@ -2,7 +2,7 @@
  * Created by JFormDesigner on Thu Jun 19 21:40:00 HKT 2025
  */
 
-package org.teamethanol.boolManager;
+package org.teamethanol.bookManager;
 
 import java.awt.*;
 import java.awt.event.MouseAdapter;
